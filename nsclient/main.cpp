@@ -20,8 +20,14 @@ Project description:	Sender-Receiver communication through a noisy channel
 #include "dns_message.h"
 #include <string>
 #include <WS2tcpip.h>
+#include <regex>
 
 
+/*
+hostent dnsQuery(char *aIpAddress){
+	// Interacts with the server
+}
+*/
 
 void WinsockInit(WSADATA *wsaData)
 {
@@ -74,29 +80,53 @@ SOCKET newSocket(sockaddr_in *aClientAddr, int* aAutoPort, BOOL aIsListen)
 
 	return s;
 }
-
-
-/*
-hostent dnsQuery(char *aIpAddress){
-	// Interacts with the server
-}
-*/
-
-void validateIpAddress(const char *ipAddress)
+void isValidIpAddress(const char *ipAddress)
 {
     struct sockaddr_in sa;
     int result = inet_pton(AF_INET, ipAddress, &(sa.sin_addr));
-	std::cout << "Result is: " << result << std::endl;
+
+	if (!result)
+	{
+		std::cerr << "Ip address is invalid!" << std::endl;
+		exit(1);
+	}
+	else
+		std::cout << "Ip address is valid" << std::endl;
+		return;
 
 }
 
+void isValidDomainName(std::string str)
+{
+ 
+  // Regex pattern to make sure the domain name is valid. 
+  // This Regex pattern has been generated with the assist of an online regex generator
+  const std::regex pattern("^(?!-)[A-Za-z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Za-z]{2,6}$");
+ 
+  if (str.empty())
+  {
+     std::cerr << "Domain name can't be empty" << std::endl;
+	 exit(1);
+  }
 
+  if(regex_match(str, pattern)) // domain name is valid
+  {
+    return;
+  }
 
+  else
+  {
+    std::cerr << "Domain name isn't valid" << std::endl;
+	 exit(1);
+  }
+}
 
 int main(int argc, char* argv[]){
 
 	const int MAXSIZE = 256;  // String max size
 	char ip_as_string[MAXSIZE];
+	std::string domain_name;
+
 
 	if (argc < 2)
 	{
@@ -104,13 +134,76 @@ int main(int argc, char* argv[]){
 		exit(1);
 	}
 
-	// set the dns server as given by the user
+	// Get the server IP address as an argument and validate it
 	
 	strcpy(ip_as_string, argv[1]); 
+	isValidIpAddress(ip_as_string);
 
-	validateIpAddress(ip_as_string);
+	while(true) // will continue stay in this loop, until the user types 'quit'
+	{
+	
+		// Get the desired domain name and validate it
+		std::cout << "Enter the Domain Name you with to query: ";
+		std::cin >> domain_name;
 
+		std::transform(domain_name.begin(), domain_name.end(), domain_name.begin(), ::tolower);  // converting all strings to lower case
+
+		if (!domain_name.compare("quit"))
+		{
+			break;
+		}
+
+		// can continue with the ns lookup
+		isValidDomainName(domain_name);
+
+
+
+	
+
+
+
+
+		dnsHeader header;
+		dnsQuestion question;
+		dnsRR rr;
+
+		// header initialize
+		memset (&header, 0, sizeof(header));
+		header.id = htons(0);
+		header.qdcount = htons(1);
+		header.rcode = 0;
+		header.aa = 0;
+		header.tc = 0;
+		header.rd = 1;
+		header.opcode = 0;
+		header.qr = 0;
+		header.z = 0;
+		header.ra = 0;
+		header.ancount = 0;
+		header.nscount = 0;
+		header.arcount = 0;
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	/*
+
 
 	// TODO: handle with all there  main order
 	int DNSServerPort = 0;
@@ -129,5 +222,6 @@ int main(int argc, char* argv[]){
 	timeout.tv_sec = 2;
 	timeout.tv_usec = 0;
 	*/
-
+	}
+	return 0;
 }
