@@ -7,3 +7,6 @@ Project description:	Sender-Receiver communication through a noisy channel
 #pragma once
 
 #define RANDOM_PORT         0
+
+
+struct timeval timeout;

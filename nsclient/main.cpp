@@ -17,6 +17,10 @@ Project description:	Sender-Receiver communication through a noisy channel
 #include <iostream>
 #include <stdlib.h>
 #include "defs.h"
+#include "dns_message.h"
+#include <string>
+#include <WS2tcpip.h>
+
 
 
 void WinsockInit(WSADATA *wsaData)
@@ -71,19 +75,59 @@ SOCKET newSocket(sockaddr_in *aClientAddr, int* aAutoPort, BOOL aIsListen)
 	return s;
 }
 
-int main(){
 
+/*
+hostent dnsQuery(char *aIpAddress){
+	// Interacts with the server
+}
+*/
+
+void validateIpAddress(const char *ipAddress)
+{
+    struct sockaddr_in sa;
+    int result = inet_pton(AF_INET, ipAddress, &(sa.sin_addr));
+	std::cout << "Result is: " << result << std::endl;
+
+}
+
+
+
+
+int main(int argc, char* argv[]){
+
+	const int MAXSIZE = 256;  // String max size
+	char ip_as_string[MAXSIZE];
+
+	if (argc < 2)
+	{
+		std::cerr << "Number of argument passed to nsclient.exe isn't correct";
+		exit(1);
+	}
+
+	// set the dns server as given by the user
+	
+	strcpy(ip_as_string, argv[1]); 
+
+	validateIpAddress(ip_as_string);
+
+	/*
+
+	// TODO: handle with all there  main order
 	int DNSServerPort = 0;
 	sockaddr_in DNSServerAddr;
+		
+
+	// setting the ip given by the user as the server ip address. need to validate the ip address is okay
+	DNSServerAddr.sin_addr.s_addr = inet_addr(ip_as_string);
 
 	// Init Winsock2
 	WSADATA wsadata;
 	WinsockInit(&wsadata);
 	SOCKET SenderListenSock = newSocket(&DNSServerAddr, &DNSServerPort, TRUE);
-
-
-
-	// follow same flow as in reference:
-	// accepting connection(?)
+	
+	// setting timeout for 2 seconds max
+	timeout.tv_sec = 2;
+	timeout.tv_usec = 0;
+	*/
 
 }
