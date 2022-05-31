@@ -22,12 +22,159 @@ Project description:	Sender-Receiver communication through a noisy channel
 #include <WS2tcpip.h>
 #include <regex>
 
+unsigned short	queryID = 0;
+const int		pointer_mask = 49152; // 1100 0000 0000 0000
 
-/*
-hostent dnsQuery(char *aIpAddress){
-	// Interacts with the server
+
+hostent *dnsQuery(std::string domainName, char* dns_ip_address)
+{
+	struct hostent* dnsAnswer = (struct hostent*)malloc(sizeof(struct hostent)); // TODO: Not sure why the malloc is needed - this is how ur friend did it + Not sure it is null in case of failure
+	// TODO: Consider a initializing func
+
+	// Initialize dnsAnswer
+	dnsAnswer->h_name		= NULL;
+	dnsAnswer->h_aliases	= NULL;
+	dnsAnswer->h_addrtype	= NULL;
+	dnsAnswer->h_length		= NULL;
+	dnsAnswer->h_addr_list	= NULL;
+
+	SOCKET dnsSocket;
+	SOCKADDR_IN dnsServerAddr;
+
+	dnsSocket = newSocket(&dnsServerAddr, dns_ip_address, FALSE);
+
+	dnsHeader header;
+	dnsQuestion question;
+
+	char send_message[2 * MAXSIZE]; // TODO: not sure how this size was chosen
+	char recv_message[4 * MAXSIZE];	// TODO: not sure how this size was chosen
+	//char aux[12 * MAXSIZE];
+	char qname[MAXSIZE];			// the domain name in dns format
+	//char host[MAXSIZE];
+
+	//int length;
+	//struct in_addr ptr;
+	//unsigned int ptr_convers;
+
+	memset(send_message, 0, sizeof(send_message));
+
+	setDnsHeader(&header); //Initialize the header
+	setDnsQname(domainName, qname); // set the QNAME in dns format
+
+	
+	memcpy(send_message, &header, sizeof(dnsHeader));			// add header to message
+	unsigned int msg_len = sizeof(dnsHeader);
+
+	memcpy(send_message + msg_len, qname, strlen(qname) + 1);	// add QNAME to message
+	msg_len += strlen(qname);
+	msg_len++;													// TODO: NOT SURE WHY THIS IS NEEDED
+
+	// set question params
+	question.qclass		= htons(1);          
+	question.qtype		= htons(1);	 
+	memcpy(send_message + msg_len, &question, sizeof(dnsQuestion));	// add question to the message
+	msg_len += sizeof(dnsQuestion);
+
+
+	// Send new query to DNS server
+	if (sendto(dnsSocket, send_message, msg_len, 0, (struct sockaddr*)&dnsServerAddr, sizeof(dnsServerAddr)) == SOCKET_ERROR)
+	{
+		std::cerr << "Could not send message to DNS server\n" << WSAGetLastError();
+		closesocket(dnsSocket);
+		exit(1);
+	}
+
+
+	// Receive the DNS server answer
+	int sockAddrSize = sizeof(dnsServerAddr);
+	if (recvfrom(dnsSocket, (char*)recv_message, sizeof(recv_message), 0, (struct sockaddr*)&dnsServerAddr, &sockAddrSize) == SOCKET_ERROR)
+	{
+		int error = WSAGetLastError();
+		// in case the error is do to timeout print an appropriate message and return to main
+		if (error == WSAETIMEDOUT) {
+			std::cerr << "DNS serever did not respond within the time limit\n" << error;
+			closesocket(dnsSocket);
+			return dnsAnswer;
+		}
+		else {
+			std::cerr << "failed to receive message from the DNS serever\n" << error;
+			closesocket(dnsSocket);
+			return dnsAnswer; // TODO: perhaps we should end the program
+		}
+	}
+
+
+	// TODO: this is how the reference checked the header of recv. not sure its ok format wise (big vs small endian)
+	memcpy(&header, recv_message, sizeof(dnsHeader));
+
+	int arcount = ntohs(header.arcount); 
+	int nscount = ntohs(header.nscount);
+	int ancount = ntohs(header.ancount);
+
+	// TODO: need to make sure this is the only case that the domain is non-existent 
+	if (nscount == 0)
+	{
+		std::cerr << "NONEXISTENT\n" << std::endl;
+		closesocket(dnsSocket);
+		return dnsAnswer;
+	}
+
+	char buffer[MAXSIZE];
+	int offset = sizeof(dnsHeader);
+	int qnameLen = 0;
+	memset(buffer, 0, sizeof(buffer));
+	decompress(recv_message, buffer, offset, &qnameLen);
+	offset += qnameLen + sizeof(dnsQuestion);
+	char* ipList[MAX_DNS_ANSWERS] = { 0 };					// Curentlly implemented on a single ip 
+	//int ipList_idx = 0;
+	//char *ipPtr;
+
+	// Parse DNS server answers
+	while (ancount > 0) {
+			--ancount;
+			//memset(ipPtr, 0, sizeof(ipPtr));
+			if (answerParser(recv_message, &offset, ipList[0]))
+				continue;
+			else
+				break;
+	}
+
+	/* TODO: this was in the reference, dont think that this is needed
+	// AUTHORITY SECTION 
+	if (nscount > 0) {
+		write(dlog, aux, strlen(aux));
+		sprintf(aux, ";; %s:\n", "AUTHORITY SECTION");
+		while (nscount > 0) {
+			--nscount;
+			DNSResponseParsing(recv_message, &offset, dlog);
+		}
+		strcpy(aux, "\n");
+		write(dlog, aux, strlen(aux));
+
+	}
+	// ADDITIONAL SECTION 
+
+	if (arcount > 0) {
+		write(dlog, aux, strlen(aux));
+		sprintf(aux, ";; %s:\n", "ADDITIONAL SECTION");
+		while (arcount > 0) {
+			--arcount;
+			DNSResponseParsing(recv_message, &offset, dlog);
+		}
+
+	}
+	*/
+
+	dnsAnswer->h_addrtype	= AF_INET;
+	dnsAnswer->h_length		= 4;
+	dnsAnswer->h_addr_list	= ipList;
+
+	closesocket(dnsSocket);
+	return dnsAnswer;
+	
+
 }
-*/
+
 
 void WinsockInit(WSADATA *wsaData)
 {
@@ -38,19 +185,28 @@ void WinsockInit(WSADATA *wsaData)
 		exit(1);
 	}
 }
-SOCKET newSocket(sockaddr_in *aClientAddr, int* aAutoPort, BOOL aIsListen)
+
+SOCKET newSocket(SOCKADDR_IN *aClientAddr, char* address, BOOL aIsListen)
 {
 	SOCKET s;
 
 	// set socket parameters
 	aClientAddr->sin_family = AF_INET;
-	aClientAddr->sin_port = RANDOM_PORT;
+	aClientAddr->sin_port = htons(PORT);
+	aClientAddr->sin_addr.s_addr = inet_addr(address);
 	
 	// create the new socket. DGRAM for UDP
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == SOCKET_ERROR)
 	{
-		std::cerr << "Could not create TCP socket\n" << WSAGetLastError();
+		std::cerr << "Could not create UDP socket\n" << WSAGetLastError();
 		exit(1);
+	}
+
+	// TODO: need to decide if an error with setting time out should cause ditching the program + This part is pretty much copied from u'r friend
+	// Set the waiting time limit for incoming communication with the DNS server
+	int maxWaitTime = MAX_WAIT_TIME;
+	if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char*)&maxWaitTime, sizeof(maxWaitTime)) == SOCKET_ERROR) {
+		std::cerr << "Could not set wait time limit for incoming DNS communication\n" << WSAGetLastError();
 	}
 
 	// if socket is for listening: will handle it correctly
@@ -73,13 +229,18 @@ SOCKET newSocket(sockaddr_in *aClientAddr, int* aAutoPort, BOOL aIsListen)
 		}
 	}
 
+	/*
+	* TODO:
+	* Not sure why this is necessary, therefore for now i deleted the input of: int *aAutoPort
+	* 
 	// set the auto selected port from operating system
 	int addrSize = sizeof(*aClientAddr);
 	getsockname(s, (SOCKADDR*)aClientAddr, &addrSize);
 	*aAutoPort = ntohs(aClientAddr->sin_port);
-
+	*/
 	return s;
 }
+
 void isValidIpAddress(const char *ipAddress)
 {
     struct sockaddr_in sa;
@@ -121,9 +282,113 @@ void isValidDomainName(std::string str)
   }
 }
 
+void setDnsHeader(dnsHeader* header)
+{
+	memset(header, 0, sizeof(header));
+	header->id = htons(queryID);
+	header->qdcount = htons(1);
+	header->rcode = 0;
+	header->aa = 0;
+	header->tc = 0;
+	header->rd = 1;
+	header->opcode = 0;
+	header->qr = 0;
+	header->z = 0;
+	header->ra = 0;
+	header->ancount = 0;
+	header->nscount = 0;
+	header->arcount = 0;
+
+	queryID++;
+}
+
+/*
+* This function gets a domain name and returns the dns format domain name
+* For example:
+* For domainName: "zoot.tau.ac.il" the function will set dnsDomainName to: "4zoot3tau2ac2il"
+*/
+void setDnsQname(std::string domainName, char* dnsQname)
+{
+	memset(dnsQname, 0, MAXSIZE);
+	strcpy(dnsQname + 1, domainName.c_str());
+	int sequenceLen = 0;
+	dnsQname[0] = '.';
+	unsigned int len = strlen(dnsQname);
+	for (int i = len - 1; i > -1; --i)
+		if (dnsQname[i] == '.') {
+			sprintf(dnsQname + i, "%d%s", sequenceLen, dnsQname + i + 1);
+			sequenceLen = 0;
+		}
+		else {
+			sequenceLen++;
+		}
+	dnsQname[strlen(dnsQname)] = '\0';
+}
+
+
+/*
+* This function decompresses a message received from the DNS server
+*/
+// TODO: could'nt figure out how this works - taken from reference
+void decompress(char* msg, char* buffer, int msgOffset, int* bufferLength) {
+	int i = msgOffset;
+	int newLine = *bufferLength;
+
+	while (msg[i] != '\0') {
+		unsigned int ptr;
+		memcpy(&ptr, msg + i, 2);				// Copy 2 bytes from message to ptr
+		ptr = ntohs(ptr);						// convert format
+		if (pointer_mask <= ptr) {				// if ptr is in fact a pointer recursively decompress message
+			int ptrOffset = ptr - pointer_mask;
+			*bufferLength = newLine;
+			decompress(msg, buffer, ptrOffset, &newLine);
+			*bufferLength += 2;
+			return;
+		}
+		else {
+			int mark = msg[i++];		// TODO: not sure why this is the limit of the following for loop
+			for (int j = 0; j < mark; ++j) {
+				buffer[newLine++] = msg[i++];
+			}
+			buffer[newLine++] = '.';	// TODO: not sure if necessary 
+		}
+	}
+
+	*bufferLength = newLine + 1;
+	buffer[newLine] = 0;				// TODO: not sure if necessary
+}
+
+/*
+* This function gets the received message from the DNS server and saves the parsing of it in ........... 
+*/
+int answerParser(char* msg_received, int* answer_length, char* ipAddress) {
+	dnsRR rr;
+	char name[MAXSIZE], type[MAXSIZE];
+	//char answer[MAXSIZE];
+	int length = 0;
+
+	decompress(msg_received, name, *answer_length, &length);
+	*answer_length += length;
+	memcpy(&rr, msg_received + (*answer_length), sizeof(dnsRR));
+	memset(type, 0, sizeof(type));
+	(*answer_length) += sizeof(dnsRR);
+	rr.rdlength = ntohs(rr.rdlength);
+	rr.type = ntohs(rr.type);
+
+	int l = *answer_length;
+	*answer_length += rr.rdlength;
+
+	if (1 != rr.type) {
+		return 1;
+	}
+
+	sprintf(ipAddress, "%hhu.%hhu.%hhu.%hhu\n", msg_received[l], msg_received[l + 1], msg_received[l + 2], msg_received[l + 3]);
+	return 0;
+
+}
+
 int main(int argc, char* argv[]){
 
-	const int MAXSIZE = 256;  // String max size
 	char ip_as_string[MAXSIZE];
 	std::string domain_name;
 
@@ -143,7 +408,7 @@ int main(int argc, char* argv[]){
 	{
 	
 		// Get the desired domain name and validate it
-		std::cout << "Enter the Domain Name you with to query: ";
+		std::cout << "Enter the Domain Name you wish to query: ";
 		std::cin >> domain_name;
 
 		std::transform(domain_name.begin(), domain_name.end(), domain_name.begin(), ::tolower);  // converting all strings to lower case
@@ -156,72 +421,12 @@ int main(int argc, char* argv[]){
 		// can continue with the ns lookup
 		isValidDomainName(domain_name);
 
+		struct hostent* dnsAnswer = dnsQuery(domain_name, ip_as_string);
 
-
-	
-
-
-
-
-		dnsHeader header;
-		dnsQuestion question;
-		dnsRR rr;
-
-		// header initialize
-		memset (&header, 0, sizeof(header));
-		header.id = htons(0);
-		header.qdcount = htons(1);
-		header.rcode = 0;
-		header.aa = 0;
-		header.tc = 0;
-		header.rd = 1;
-		header.opcode = 0;
-		header.qr = 0;
-		header.z = 0;
-		header.ra = 0;
-		header.ancount = 0;
-		header.nscount = 0;
-		header.arcount = 0;
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	/*
-
-
-	// TODO: handle with all there  main order
-	int DNSServerPort = 0;
-	sockaddr_in DNSServerAddr;
-		
-
-	// setting the ip given by the user as the server ip address. need to validate the ip address is okay
-	DNSServerAddr.sin_addr.s_addr = inet_addr(ip_as_string);
-
-	// Init Winsock2
-	WSADATA wsadata;
-	WinsockInit(&wsadata);
-	SOCKET SenderListenSock = newSocket(&DNSServerAddr, &DNSServerPort, TRUE);
-	
-	// setting timeout for 2 seconds max
-	timeout.tv_sec = 2;
-	timeout.tv_usec = 0;
-	*/
+		// Parse response if successfull
+		if (dnsAnswer->h_length != NULL) {
+			printf("%s \n", dnsAnswer->h_addr_list[0]);
+		}
 	}
 	return 0;
 }

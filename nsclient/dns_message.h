@@ -93,8 +93,9 @@ struct dnsQuestion{
 */
 
 struct dnsRR{
-    unsigned short type;          // specifies the meaning of the data in the RDATA field
-	unsigned short _class;        // specieies the class of the data in the RDATA field
-	unsigned int ttl;             // time before record cache may be discarded
-	unsigned short rdlength;      // length of RDATA field, according to the type and class
+    unsigned short  type;       // specifies the meaning of the data in the RDATA field
+	unsigned short  _class;     // specieies the class of the data in the RDATA field
+	unsigned int    ttl;        // time before record cache may be discarded
+	unsigned short  rdlength;   // length of RDATA field, according to the type and class
 };
+
