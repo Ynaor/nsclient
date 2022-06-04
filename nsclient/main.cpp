@@ -149,43 +149,9 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 				break;
 	}
 
-	/* TODO: this was in the reference, dont think that this is needed
-	// AUTHORITY SECTION 
-	if (nscount > 0) {
-		write(dlog, aux, strlen(aux));
-		sprintf(aux, ";; %s:\n", "AUTHORITY SECTION");
-		while (nscount > 0) {
-			--nscount;
-			DNSResponseParsing(recv_message, &offset, dlog);
-		}
-		strcpy(aux, "\n");
-		write(dlog, aux, strlen(aux));
-
-	}
-	// ADDITIONAL SECTION 
-
-	if (arcount > 0) {
-		write(dlog, aux, strlen(aux));
-		sprintf(aux, ";; %s:\n", "ADDITIONAL SECTION");
-		while (arcount > 0) {
-			--arcount;
-			DNSResponseParsing(recv_message, &offset, dlog);
-		}
-
-	}
-	*/
-
-	char returned_ips[MAX_ANSWERS][16] = { 0 };
-
-
-
-	//strcpy(returned_ips[0], ipPtr);
-
 
 	dnsAnswer->h_addrtype	= AF_INET;
 	dnsAnswer->h_length		= 4;
-	//dnsAnswer->h_addr_list = (char **)ipPtr;
-	//strcpy(dnsAnswer->h_addr_list[0], ipPtr);
 	dnsAnswer->h_addr_list = &ipPtr;
 	closesocket(dnsSocket);
 	return dnsAnswer;
