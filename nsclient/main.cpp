@@ -326,7 +326,7 @@ void setDnsQname(std::string domainName, char* dnsQname)
 	unsigned int len = strlen(dnsQname);
 	for (int i = len - 1; i > -1; --i)
 		if (dnsQname[i] == '.') {
-			sprintf(dnsQname + i, "%d%s", sequenceLen, dnsQname + i + 1);
+			sprintf(dnsQname + i, "%c%s", sequenceLen, dnsQname + i + 1);
 			sequenceLen = 0;
 		}
 		else {
