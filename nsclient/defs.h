@@ -12,6 +12,7 @@ Project description:	Sender-Receiver communication through a noisy channel
 #define MAX_WAIT_TIME		2000	// Max wait time for receiving response from the DNS server in miliseconds
 #define IP_LEN				15		// IPV4 len in bytes - 12 digits + 3 dots 
 #define MAX_DNS_ANSWERS		50		// The maximum number of the DNS server answers
+#define MAX_ANSWERS         1       // TODO: fill this
 
 struct timeval timeout;
 

@@ -32,12 +32,10 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 	// TODO: Consider a initializing func
 
 	// Initialize dnsAnswer
+	
 	dnsAnswer->h_name		= NULL;
 	dnsAnswer->h_aliases	= NULL;
-	dnsAnswer->h_addrtype	= NULL;
-	dnsAnswer->h_length		= NULL;
-	dnsAnswer->h_addr_list	= NULL;
-
+	
 	SOCKET dnsSocket;
 	SOCKADDR_IN dnsServerAddr;
 
@@ -137,13 +135,12 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 	offset += qnameLen + sizeof(dnsQuestion);
 	char* ipList[MAX_DNS_ANSWERS] = { 0 };					// Curentlly implemented on a single ip 
 	//int ipList_idx = 0;
-	//char *ipPtr;
 
 	// Parse DNS server answers
 	while (ancount > 0) {
 			--ancount;
 			//memset(ipPtr, 0, sizeof(ipPtr));
-			if (answerParser(recv_message, &offset, ipList[0]))
+			if (answerParser(recv_message, &offset, dnsAnswer->h_addr_list[0]))
 				continue;
 			else
 				break;
@@ -175,10 +172,17 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 	}
 	*/
 
+	char returned_ips[MAX_ANSWERS][16] = { 0 };
+
+
+
+	//strcpy(returned_ips[0], ipPtr);
+
+
 	dnsAnswer->h_addrtype	= AF_INET;
 	dnsAnswer->h_length		= 4;
-	dnsAnswer->h_addr_list	= ipList;
-
+	//dnsAnswer->h_addr_list = (char **)ipPtr;
+	//strcpy(dnsAnswer->h_addr_list[0], ipPtr);
 	closesocket(dnsSocket);
 	return dnsAnswer;
 	
@@ -396,8 +400,20 @@ int answerParser(char* msg_received, int* answer_length, char* ipAddress) {
 	if (1 != rr.type) {
 		return 1;
 	}
+	/*
+	ipAddress[0] = (char)((int)msg_received[l]);
+	ipAddress[1] = '.';
+	ipAddress[2] = (char)((int)msg_received[l+1]);
+	ipAddress[3] = '.';
+	ipAddress[4] = (char)((int)msg_received[l+2]);
+	ipAddress[5] = '.';
+	ipAddress[6] = (char)((int)msg_received[l+3]);
+	ipAddress[7] = '\0';
 
-	sprintf(ipAddress, "%hhu.%hhu.%hhu.%hhu\n", msg_received[l], msg_received[l + 1], msg_received[l + 2], msg_received[l + 3]);
+
+	*/
+
+	sprintf(ipAddress, "%d.%d.%d.%d", (unsigned char)msg_received[l], (unsigned char)msg_received[l + 1], (unsigned char)msg_received[l + 2], (unsigned char)msg_received[l + 3]);
 	return 0;
 
 }
