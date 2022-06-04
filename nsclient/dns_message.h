@@ -25,22 +25,19 @@
 #pragma pack(1)                    // removing redundant padding inside the struct
 struct dnsHeader{
 
-    unsigned short id;             // message id number
+    unsigned short id;			// ID number: to be incremented for consequitive mesasges.
 
-    unsigned char qr: 1;           // Specifies whether this message is a query (0), or a response (1)
-    unsigned char opcode :4;       // Specifies the kind of query in this message. (0) for standard query, (1) for inverse query
-    unsigned char aa :1;           // Authoritive answer
-    unsigned char tc :1;           // TrunCation message
-    unsigned char rd :1;           // Recursion desired
-    unsigned char ra :1;           // Recursion Available
-    unsigned char z :3;            // Reserved - must be All Zeros
-    unsigned char rcode :4;        /* 0 No error condition
-                                      1 Format error   
-                                      2 Server failure
-                                      3 Name Error 
-                                      4 Not Implemented 
-                                      5 Refused 
-                                      6-15 Reserved for future use. */
+    unsigned char rd : 1;		// recursion desired field
+    unsigned char tc : 1;		// is message truncated
+    unsigned char aa : 1;		// is the answer authoritive?
+    unsigned char opcode : 4;	// opcode for type of message
+    unsigned char qr : 1;		// opcode for query or reponse
+
+    unsigned char rcode : 4;	// reponse code for the packet
+    unsigned char cd : 1;		// check?
+    unsigned char ad : 1;		// is the data authenticated
+    unsigned char z : 1;		// does nothing, very relateable 
+    unsigned char ra : 1;		// recursion available
 
     unsigned short qdcount;        // number of entries in the question section
 	unsigned short ancount;        // number of resource records in the answer section.
