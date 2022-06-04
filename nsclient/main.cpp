@@ -41,12 +41,17 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 	SOCKET dnsSocket;
 	SOCKADDR_IN dnsServerAddr;
 
+	// Init Winsock2
+	// TODO: add failure handling here
+	WSADATA wsadata;
+	WinsockInit(&wsadata);
+
 	dnsSocket = newSocket(&dnsServerAddr, dns_ip_address, FALSE);
 
 	dnsHeader header;
 	dnsQuestion question;
 
-	char send_message[2 * MAXSIZE]; // TODO: not sure how this size was chosen
+	unsigned char send_message[2 * MAXSIZE]; // TODO: not sure how this size was chosen
 	char recv_message[4 * MAXSIZE];	// TODO: not sure how this size was chosen
 	//char aux[12 * MAXSIZE];
 	char qname[MAXSIZE];			// the domain name in dns format
@@ -77,7 +82,7 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 
 
 	// Send new query to DNS server
-	if (sendto(dnsSocket, send_message, msg_len, 0, (struct sockaddr*)&dnsServerAddr, sizeof(dnsServerAddr)) == SOCKET_ERROR)
+	if (sendto(dnsSocket, (char*)send_message, msg_len+1, 0, (struct sockaddr*)&dnsServerAddr, sizeof(dnsServerAddr)) == SOCKET_ERROR)
 	{
 		std::cerr << "Could not send message to DNS server\n" << WSAGetLastError();
 		closesocket(dnsSocket);
@@ -196,7 +201,7 @@ SOCKET newSocket(SOCKADDR_IN *aClientAddr, char* address, BOOL aIsListen)
 	aClientAddr->sin_addr.s_addr = inet_addr(address);
 	
 	// create the new socket. DGRAM for UDP
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == SOCKET_ERROR)
+	if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET)
 	{
 		std::cerr << "Could not create UDP socket\n" << WSAGetLastError();
 		exit(1);
@@ -204,10 +209,15 @@ SOCKET newSocket(SOCKADDR_IN *aClientAddr, char* address, BOOL aIsListen)
 
 	// TODO: need to decide if an error with setting time out should cause ditching the program + This part is pretty much copied from u'r friend
 	// Set the waiting time limit for incoming communication with the DNS server
-	int maxWaitTime = MAX_WAIT_TIME;
-	if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char*)&maxWaitTime, sizeof(maxWaitTime)) == SOCKET_ERROR) {
+	/*int maxWaitTime = MAX_WAIT_TIME;
+
+	timeval sock_tv = {0};
+	sock_tv.tv_sec = 2;
+	sock_tv.tv_usec = 0;
+
+	if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char*)&sock_tv, sizeof(sock_tv)) == SOCKET_ERROR) {
 		std::cerr << "Could not set wait time limit for incoming DNS communication\n" << WSAGetLastError();
-	}
+	}*/
 
 	// if socket is for listening: will handle it correctly
 	if (aIsListen)
