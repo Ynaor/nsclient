@@ -109,20 +109,25 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 	}
 
 
+
+
+
 	// TODO: this is how the reference checked the header of recv. not sure its ok format wise (big vs small endian)
 	memcpy(&header, recv_message, sizeof(dnsHeader));
+
+	// TODO: check if there is an answer
 
 	int arcount = ntohs(header.arcount); 
 	int nscount = ntohs(header.nscount);
 	int ancount = ntohs(header.ancount);
 
 	// TODO: need to make sure this is the only case that the domain is non-existent 
-	if (nscount == 0)
+	/*if (nscount == 0)
 	{
 		std::cerr << "NONEXISTENT\n" << std::endl;
 		closesocket(dnsSocket);
 		return dnsAnswer;
-	}
+	}*/
 
 	char buffer[MAXSIZE];
 	int offset = sizeof(dnsHeader);
