@@ -21,6 +21,9 @@
     <ClCompile Include="utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="DnsClient.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="defs.h">
@@ -28,6 +31,9 @@
     </ClInclude>
     <ClInclude Include="dns_message.h">
       <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DnsClient.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

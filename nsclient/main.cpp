@@ -1,7 +1,7 @@
 /*
 Authors:				Shachar Cohen (313416521) & Yuval Naor (312497084)
-Project:				Programming Assignment 1: Noisy Channel
-Project description:	Sender-Receiver communication through a noisy channel
+Project:				Programming Assignment 2: Name Server client
+Project description:	Implementation of a simple DNS client
 */
 
 #pragma comment(lib, "Ws2_32.lib")
@@ -45,15 +45,15 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 	WSADATA wsadata;
 	WinsockInit(&wsadata);
 
-	dnsSocket = newSocket(&dnsServerAddr, dns_ip_address, FALSE);
+	dnsSocket = createNewSocket(&dnsServerAddr, dns_ip_address, FALSE);
 
 	dnsHeader header;
 	dnsQuestion question;
 
-	unsigned char send_message[2 * MAXSIZE]; // TODO: not sure how this size was chosen
-	char recv_message[4 * MAXSIZE];	// TODO: not sure how this size was chosen
+	unsigned char send_message[2 * BUFFERMAXSIZE]; // TODO: not sure how this size was chosen
+	char recv_message[4 * BUFFERMAXSIZE];	// TODO: not sure how this size was chosen
 	//char aux[12 * MAXSIZE];
-	char qname[MAXSIZE];			// the domain name in dns format
+	char qname[BUFFERMAXSIZE];			// the domain name in dns format
 	//char host[MAXSIZE];
 
 	//int length;
@@ -128,7 +128,7 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 		return dnsAnswer;
 	}
 
-	char buffer[MAXSIZE];
+	char buffer[BUFFERMAXSIZE];
 	int offset = sizeof(dnsHeader);
 	int qnameLen = 0;
 	memset(buffer, 0, sizeof(buffer));
@@ -170,7 +170,7 @@ void WinsockInit(WSADATA *wsaData)
 	}
 }
 
-SOCKET newSocket(SOCKADDR_IN *aClientAddr, char* address, BOOL aIsListen)
+SOCKET createNewSocket(SOCKADDR_IN *aClientAddr, char* address, BOOL aIsListen)
 {
 	SOCKET s;
 
@@ -298,7 +298,7 @@ void setDnsHeader(dnsHeader* header)
 */
 void setDnsQname(std::string domainName, char* dnsQname)
 {
-	memset(dnsQname, 0, MAXSIZE);
+	memset(dnsQname, 0, BUFFERMAXSIZE);
 	strcpy(dnsQname + 1, domainName.c_str());
 	int sequenceLen = 0;
 	dnsQname[0] = '.';
@@ -352,7 +352,7 @@ void decompress(char* msg, char* buffer, int msgOffset, int* bufferLength) {
 */
 int answerParser(char* msg_received, int* answer_length, char* ipAddress) {
 	dnsRR rr;
-	char name[MAXSIZE], type[MAXSIZE];
+	char name[BUFFERMAXSIZE], type[BUFFERMAXSIZE];
 	//char answer[MAXSIZE];
 	int length = 0;
 
@@ -390,7 +390,7 @@ int answerParser(char* msg_received, int* answer_length, char* ipAddress) {
 
 int main(int argc, char* argv[]){
 
-	char ip_as_string[MAXSIZE];
+	char ip_as_string[BUFFERMAXSIZE];
 	std::string domain_name;
 
 

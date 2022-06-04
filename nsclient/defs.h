@@ -7,7 +7,7 @@ Project description:	Sender-Receiver communication through a noisy channel
 #pragma once
 
 #define RANDOM_PORT         0
-#define	MAXSIZE				256		// String max size
+#define	BUFFERMAXSIZE				256		// String max size
 #define PORT				53		// Default port
 #define MAX_WAIT_TIME		2000	// Max wait time for receiving response from the DNS server in miliseconds
 #define IP_LEN				15		// IPV4 len in bytes - 12 digits + 3 dots 
@@ -20,25 +20,12 @@ struct timeval timeout;
 #define _CRT_SECURE_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
-// ************************************************
-// ***********       Includes       ***************
-// ************************************************
-#include <winsock2.h>
-#include <ws2def.h>
-#include <cstdint>
-#include <iostream>
-#include <stdlib.h>
-#include "defs.h"
-#include "dns_message.h"
-#include <string>
-#include <WS2tcpip.h>
-#include <regex>
 
 hostent* dnsQuery(std::string domainName, char* dns_ip_address);
 
 void WinsockInit(WSADATA* wsaData);
 
-SOCKET newSocket(SOCKADDR_IN* aClientAddr, char* address, BOOL aIsListen);
+SOCKET createNewSocket(SOCKADDR_IN* aClientAddr, char* address, BOOL aIsListen);
 
 void isValidIpAddress(const char* ipAddress);
 
