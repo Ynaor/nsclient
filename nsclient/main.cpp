@@ -35,6 +35,7 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 	
 	dnsAnswer->h_name		= NULL;
 	dnsAnswer->h_aliases	= NULL;
+	dnsAnswer->h_length = 0;
 	
 	SOCKET dnsSocket;
 	SOCKADDR_IN dnsServerAddr;
@@ -120,12 +121,12 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 	int ancount = ntohs(header.ancount);
 
 	// TODO: need to make sure this is the only case that the domain is non-existent 
-	/*if (nscount == 0)
+	if (ancount == 0)
 	{
-		std::cerr << "NONEXISTENT\n" << std::endl;
+		std::cerr << "DNS Server Could not find the specified domain name\n" << std::endl;
 		closesocket(dnsSocket);
 		return dnsAnswer;
-	}*/
+	}
 
 	char buffer[MAXSIZE];
 	int offset = sizeof(dnsHeader);
@@ -134,13 +135,15 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 	decompress(recv_message, buffer, offset, &qnameLen);
 	offset += qnameLen + sizeof(dnsQuestion);
 	char* ipList[MAX_DNS_ANSWERS] = { 0 };					// Curentlly implemented on a single ip 
+	char *ipPtr = (char*)malloc(sizeof(char)*16);
+
+
 	//int ipList_idx = 0;
 
 	// Parse DNS server answers
 	while (ancount > 0) {
 			--ancount;
-			//memset(ipPtr, 0, sizeof(ipPtr));
-			if (answerParser(recv_message, &offset, dnsAnswer->h_addr_list[0]))
+			if (answerParser(recv_message, &offset, ipPtr))
 				continue;
 			else
 				break;
@@ -183,6 +186,7 @@ hostent *dnsQuery(std::string domainName, char* dns_ip_address)
 	dnsAnswer->h_length		= 4;
 	//dnsAnswer->h_addr_list = (char **)ipPtr;
 	//strcpy(dnsAnswer->h_addr_list[0], ipPtr);
+	dnsAnswer->h_addr_list = &ipPtr;
 	closesocket(dnsSocket);
 	return dnsAnswer;
 	
@@ -455,9 +459,12 @@ int main(int argc, char* argv[]){
 		struct hostent* dnsAnswer = dnsQuery(domain_name, ip_as_string);
 
 		// Parse response if successfull
-		if (dnsAnswer->h_length != NULL) {
+		if (dnsAnswer->h_length != 0) {
 			printf("%s \n", dnsAnswer->h_addr_list[0]);
 		}
 	}
 	return 0;
 }
+
+
+// TODO: free all malloc vars
