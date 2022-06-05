@@ -14,8 +14,8 @@ public:
     ********************************************************************/
     static DnsClient& Instance()
     {
-        static DnsClient instance;
-        return instance;
+        static DnsClient mInstance;
+        return mInstance;
     }
 
     /********************************************************************
@@ -50,11 +50,24 @@ private:
     ********************************************************************/    
     void InitWinsock();
 
+    /********************************************************************
+    * Decompress the answer recieved from the DNS server
+    ********************************************************************/
+    void decompressIncomingMessage(char* msg, char* buffer, int msgOffset, int* bufferLength);
 
+    /********************************************************************
+    * Will get the IPs returned in the DNS answer
+    ********************************************************************/
+    int recievedIpParser(char* msg_received, int* answer_length, char* ipAddress);
+
+
+    // Networking functions
+    SOCKET createNewSocket(SOCKADDR_IN *aClientAddr, char* aAddress, BOOL aIsListen);
+    void WinsockInit(WSADATA *wsaData);
 
     // members
     unsigned short mQueryID = 0;
-    const int pointerMask = 0xc000;
+    const int pointerOffsetMask = 0xc000;
     struct hostent* mDnsAnswer;
     dnsHeader mHeader;
 	dnsQuestion mQuestion;
@@ -66,12 +79,6 @@ private:
     // networking
     SOCKET mDnsSocket;
 	SOCKADDR_IN mDnsServerAddr;
-
     char *DnsIpAddressAsString;
 
 };
-
-
-// Out of class scope functions
-
-SOCKET createNewSocket(SOCKADDR_IN *aClientAddr, char* aAddress, BOOL aIsListen);

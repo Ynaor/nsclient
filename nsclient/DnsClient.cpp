@@ -23,9 +23,6 @@ Project description:	Implementation of a simple DNS client
 
 DnsClient::DnsClient()
 {
-	InitWinsock();
-	mDnsSocket = createNewSocket(&mDnsServerAddr, DnsIpAddressAsString, FALSE);
-
 
 	mDnsAnswer = (struct hostent*)malloc(sizeof(struct hostent)); // free this allocated memory
 	mDnsAnswer->h_name		= NULL;
@@ -41,7 +38,7 @@ void DnsClient::InitWinsock()
 
 }
 
-SOCKET createNewSocket(SOCKADDR_IN *aClientAddr, char* address, BOOL aIsListen)
+SOCKET DnsClient::createNewSocket(SOCKADDR_IN *aClientAddr, char* address, BOOL aIsListen)
 {
 	SOCKET s;
 
@@ -57,22 +54,19 @@ SOCKET createNewSocket(SOCKADDR_IN *aClientAddr, char* address, BOOL aIsListen)
 		exit(1);
 	}
 
-	// TODO: need to decide if an error with setting time out should cause ditching the program + This part is pretty much copied from u'r friend
-	// Set the waiting time limit for incoming communication with the DNS server
-	/*int maxWaitTime = MAX_WAIT_TIME;
+	int timeLimit = TIMEOUT_MILI;
 
-	timeval sock_tv = {0};
-	sock_tv.tv_sec = 2;
-	sock_tv.tv_usec = 0;
+	// make sure we don't wait over 2 seconds 
+	if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeLimit, sizeof(timeLimit)) < 0)
+	{
+		std::cerr << "Error setting time limit for the socket" << "\n";
+	}
 
-	if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char*)&sock_tv, sizeof(sock_tv)) == SOCKET_ERROR) {
-		std::cerr << "Could not set wait time limit for incoming DNS communication\n" << WSAGetLastError();
-	}*/
 
 	// if socket is for listening: will handle it correctly
 	if (aIsListen)
 	{
-		// bind
+		// bind - In case we wish to use TCP connection later on
 		int bindRes = bind(s, (SOCKADDR*)aClientAddr, sizeof(*aClientAddr));
 		if (bindRes)
 		{
@@ -89,6 +83,16 @@ SOCKET createNewSocket(SOCKADDR_IN *aClientAddr, char* address, BOOL aIsListen)
 		}
 	}
 	return s;
+}
+
+void DnsClient::WinsockInit(WSADATA *wsaData)
+{
+	const auto api_ver = MAKEWORD(2, 2);
+	if (WSAStartup(api_ver, wsaData) != NO_ERROR)
+	{
+		std::cerr << "Winsock initialization failed\n" << WSAGetLastError();
+		exit(1);
+	}
 }
 
 void DnsClient::setDnsHeader(dnsHeader *aHeader)
@@ -130,11 +134,70 @@ void DnsClient::setDnsQname(std::string aDomainName, char *aDnsQname)
 	aDnsQname[strlen(aDnsQname)] = '\0';
 }
 
+void DnsClient::decompressIncomingMessage(char* msg, char* buffer, int msgOffset, int* bufferLength) {
+	int i = msgOffset;
+	int newLine = *bufferLength;
+
+	while (msg[i] != '\0') {
+		unsigned int ptr;
+		memcpy(&ptr, msg + i, 2);				    // Copy 2 bytes from message to ptr
+		ptr = ntohs(ptr);						    // convert format
+		if (pointerOffsetMask <= ptr) {				// if ptr is in fact a pointer recursively decompress message
+			int ptrOffset = ptr - pointerOffsetMask;
+			*bufferLength = newLine;
+			decompressIncomingMessage(msg, buffer, ptrOffset, &newLine);
+			*bufferLength += 2;
+			return;
+		}
+		else {
+			int mark = msg[i++];		
+			for (int j = 0; j < mark; ++j) {
+				buffer[newLine++] = msg[i++];
+			}
+			buffer[newLine++] = '.';	
+		}
+	}
+
+	*bufferLength = newLine + 1;
+	buffer[newLine] = 0;				
+}
+
+int  DnsClient::recievedIpParser(char* msg_received, int* answer_length, char* ipAddress) {
+
+	dnsRR rr;
+	char name[BUFFERMAXSIZE], type[BUFFERMAXSIZE];
+	int length = 0;
+
+	decompressIncomingMessage(msg_received, name, *answer_length, &length);
+	*answer_length += length;
+	memcpy(&rr, msg_received + (*answer_length), sizeof(dnsRR));
+	memset(type, 0, sizeof(type));
+	(*answer_length) += sizeof(dnsRR);
+	rr.rdlength = ntohs(rr.rdlength);
+	rr.type = ntohs(rr.type);
+
+	int l = *answer_length;
+	*answer_length += rr.rdlength;
+
+	if (1 != rr.type) {
+		return 1;
+	}
+
+	// Fill the hostent struct with the found IP address - for this time, will fill only a single IP address.
+
+	sprintf(ipAddress, "%d.%d.%d.%d", (unsigned char)msg_received[l], (unsigned char)msg_received[l + 1], (unsigned char)msg_received[l + 2], (unsigned char)msg_received[l + 3]);
+	return 0;
+}
 
 hostent* DnsClient::dnsQuery(std::string adomainName, char* aDnsIpAddress)
 {
+
+	InitWinsock();
+	mDnsSocket = createNewSocket(&mDnsServerAddr, aDnsIpAddress, FALSE);
+
+
 	setDnsHeader(&mHeader);													// Initialize the header
-	setDnsQname(DnsIpAddressAsString, Qname);								// Convert the input domain name to a Qname format
+	setDnsQname(adomainName, Qname);								        // Convert the input domain name to a Qname format
 
 	memcpy(OutputBuffer, &mHeader, sizeof(dnsHeader));						// Adding the header to output message
 	mMessageLength = sizeof(dnsHeader);
@@ -158,7 +221,6 @@ hostent* DnsClient::dnsQuery(std::string adomainName, char* aDnsIpAddress)
 		exit(1);
 	}
 
-
 	// Receive the DNS server answer
 	int sockAddrSize = sizeof(mDnsServerAddr);
 	if (recvfrom(mDnsSocket, (char*)InputBuffer, sizeof(InputBuffer), 0, (struct sockaddr*)&mDnsServerAddr, &sockAddrSize) == SOCKET_ERROR)
@@ -168,60 +230,57 @@ hostent* DnsClient::dnsQuery(std::string adomainName, char* aDnsIpAddress)
 		if (error == WSAETIMEDOUT) {
 			std::cerr << "DNS serever did not respond within the time limit\n" << error;
 			closesocket(mDnsSocket);
-			return mDnsAnswer;
+			return nullptr;
 		}
 		else {
 			std::cerr << "failed to receive message from the DNS serever\n" << error;
 			closesocket(mDnsSocket);
-			return mDnsAnswer; // TODO: perhaps we should end the program
+			return nullptr; 
 		}
 	}
 
-
-	 // TODO: continue here
+	// Gettin the answer Header
 	memcpy(&mHeader, InputBuffer, sizeof(dnsHeader));
-
-	// TODO: check if there is an answer
 
 	int arcount = ntohs(mHeader.arcount); 
 	int nscount = ntohs(mHeader.nscount);
 	int ancount = ntohs(mHeader.ancount);
 
-	// TODO: need to make sure this is the only case that the domain is non-existent 
+	// The DNS server couldn't answer for the given domain name
 	if (ancount == 0)
 	{
 		std::cerr << "DNS Server Could not find the specified domain name\n" << std::endl;
 		closesocket(mDnsSocket);
-		return dnsAnswer;
+		return nullptr;
 	}
 
 	char buffer[BUFFERMAXSIZE];
 	int offset = sizeof(dnsHeader);
 	int qnameLen = 0;
+
 	memset(buffer, 0, sizeof(buffer));
-	decompress(InputBuffer, buffer, offset, &qnameLen);
+	decompressIncomingMessage(InputBuffer, buffer, offset, &qnameLen);
+
 	offset += qnameLen + sizeof(dnsQuestion);
-	char* ipList[MAX_DNS_ANSWERS] = { 0 };					// Curentlly implemented on a single ip 
+	char *ipList[MAX_DNS_ANSWERS] = { 0 };					// Curentlly implemented for a single ip 
 	char *ipPtr = (char*)malloc(sizeof(char)*16);
 
 
-	//int ipList_idx = 0;
-
-	// Parse DNS server answers
+	// Get the incoming IP address answer
 	while (ancount > 0) {
 			--ancount;
-			if (answerParser(InputBuffer, &offset, ipPtr))
+			if (recievedIpParser(InputBuffer, &offset, ipPtr))
 				continue;
 			else
 				break;
 	}
 
 
-	dnsAnswer->h_addrtype	= AF_INET;
-	dnsAnswer->h_length		= 4;
-	dnsAnswer->h_addr_list = &ipPtr;
+	mDnsAnswer->h_addrtype	= AF_INET;
+	mDnsAnswer->h_length		= 4;
+	mDnsAnswer->h_addr_list = &ipPtr;
 	closesocket(mDnsSocket);
-	return dnsAnswer;
 
+	return mDnsAnswer;
 }
 
