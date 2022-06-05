@@ -4,6 +4,8 @@ Developed by:
 * Yuval Naor (312497084) 
 
 This project is an implementation a simple nslookup-like tool.
+We have implemented the DNS client as a singelton class, to encapsulate functionalility and to allow to extend this client and add new features in the future.
+
 
 This client allows to query any desired DNS server, and translate any desired domain name into it's IPv4 address.
 
@@ -44,7 +46,6 @@ DNS server -->> nsclient: 132.66.11.168
 nsclient is using UDP protocol to send packets to the DNS server.
 This implementation is a simple implemetation of RFC 1035 protocol (https://www.rfc-editor.org/info/rfc1035)
 
-We have implemented the DNS client as a singelton class, to encapsulate functionalility and to allow to extend this client and add new features in the future.
 
 
  
