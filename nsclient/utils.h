@@ -11,7 +11,7 @@ Project description:	Sender-Receiver communication through a noisy channel
 /****************************************************************************
 * Check that the input domain name is indeed in a domain-name structure
 ****************************************************************************/
-void isValidDomainName(std::string str);
+int isValidDomainName(std::string str);
 
 /****************************************************************************
 * Check that the given DNS server IP address is indeed in a IP address format

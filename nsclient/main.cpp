@@ -57,10 +57,14 @@ int main(int argc, char* argv[]){
 		}
 
 		// can continue with the ns lookup
-		isValidDomainName(domain_name);
+		if(isValidDomainName(domain_name))
+		{
+			continue; // if domain name is invalid, skip and ask for a domain name again
+		}
 
 
-		struct hostent* dnsAnswer = DnsClient::Instance().dnsQuery(domain_name, ip_as_string);
+		struct hostent* dnsAnswer = NULL;
+		dnsAnswer = DnsClient::Instance().dnsQuery(domain_name, ip_as_string);
 
 		if (dnsAnswer != NULL)
 		{
@@ -69,6 +73,7 @@ int main(int argc, char* argv[]){
 			printf("%s \n\n", dnsAnswer->h_addr_list[0]);
 			}
 		}
+		
 	}	
 	return 0;
 }

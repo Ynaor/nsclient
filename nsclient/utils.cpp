@@ -5,7 +5,7 @@
 #include <WS2tcpip.h>
 
 
-void isValidDomainName(std::string str)
+int isValidDomainName(std::string str)
 {
  
   // Regex pattern to make sure the domain name is valid. 
@@ -21,14 +21,15 @@ void isValidDomainName(std::string str)
 
   if(regex_match(str, pattern)) // domain name is valid
   {
-    return;
+    return 0;
   }
 
   else
   {
     std::cerr << "Domain name isn't valid\n" << std::endl;
-	 exit(1);
+	 return 1;
   }
+  
 }
 
 void isValidIpAddress(const char *ipAddress)
@@ -38,11 +39,11 @@ void isValidIpAddress(const char *ipAddress)
 
 	if (!result)
 	{
-		std::cerr << "Ip address is invalid!\n" << std::endl;
+		std::cerr << "Server Ip address is invalid!\n" << std::endl;
 		exit(1);
 	}
 	else
-		std::cout << "Ip address is valid" << std::endl;
+		std::cout << "Server Ip address is valid" << std::endl;
 		return;
 
 }

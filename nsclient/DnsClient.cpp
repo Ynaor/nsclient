@@ -57,6 +57,7 @@ SOCKET DnsClient::createNewSocket(SOCKADDR_IN *aClientAddr, char* address, BOOL 
 	int timeLimit = TIMEOUT_MILI;
 
 	// make sure we don't wait over 2 seconds 
+	// Thanks to Alon Budker for the help with this section
 	if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeLimit, sizeof(timeLimit)) < 0)
 	{
 		std::cerr << "Error setting time limit for the socket" << "\n";
