@@ -47,6 +47,6 @@ This implementation is a simple implemetation of RFC 1035 protocol (https://www.
 
  
 ## Restrictions
-1. This client currenly supports only direct DNS requests (Domain to IP only)
+1. This client currently supports only direct DNS requests (Domain to IP only)
 2. We have implemented an infrastructure to support an answer of more than 1 IP address, but currently we are using just a single answer.
 
