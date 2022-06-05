@@ -44,6 +44,8 @@ DNS server -->> nsclient: 132.66.11.168
 nsclient is using UDP protocol to send packets to the DNS server.
 This implementation is a simple implemetation of RFC 1035 protocol (https://www.rfc-editor.org/info/rfc1035)
 
+We have implemented the DNS client as a singelton class, to encapsulate functionalility and to allow to extend this client and add new features in the future.
+
 
  
 ## Restrictions
